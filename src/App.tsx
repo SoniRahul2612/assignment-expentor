@@ -1,4 +1,7 @@
+// Import React hooks for state management and side effects
 import { useState, useEffect } from 'react';
+
+// Import Material-UI components for building the user interface
 import {
   Container,
   Paper,
@@ -17,25 +20,35 @@ import {
   IconButton,
   CircularProgress,
 } from '@mui/material';
+
+// Import date picker components for date selection
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import DeleteIcon from '@mui/icons-material/Delete';
+
+// Import date manipulation utilities from date-fns
 import { format, subDays, isAfter, isBefore } from 'date-fns';
+
+// Import custom types and constants
 import type { Currency } from './types/currency';
 import { DEFAULT_CURRENCIES } from './types/currency';
+
+// Import API service functions for currency data
 import { fetchAvailableCurrencies, fetchExchangeRates } from './services/currencyService';
 
 function App() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [baseCurrency, setBaseCurrency] = useState('GBP');
-  const [selectedCurrencies, setSelectedCurrencies] = useState(DEFAULT_CURRENCIES);
-  const [availableCurrencies, setAvailableCurrencies] = useState<Currency[]>([]);
-  const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedAddCurrency, setSelectedAddCurrency] = useState('');
+  // State management for the application
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // Current selected date
+  const [baseCurrency, setBaseCurrency] = useState('GBP'); // Base currency for exchange rates
+  const [selectedCurrencies, setSelectedCurrencies] = useState(DEFAULT_CURRENCIES); // List of currencies to display
+  const [availableCurrencies, setAvailableCurrencies] = useState<Currency[]>([]); // All available currencies from API
+  const [exchangeRates, setExchangeRates] = useState<{ [key: string]: number }[]>([]); // Exchange rates data
+  const [loading, setLoading] = useState(false); // Loading state for API calls
+  const [error, setError] = useState<string | null>(null); // Error state for error handling
+  const [selectedAddCurrency, setSelectedAddCurrency] = useState(''); // Currently selected currency to add
 
+  // Effect to load available currencies when component mounts
   useEffect(() => {
     const loadAvailableCurrencies = async () => {
       try {
@@ -50,12 +63,14 @@ function App() {
     loadAvailableCurrencies();
   }, []);
 
+  // Effect to load exchange rates when date, base currency, or selected currencies change
   useEffect(() => {
     const loadExchangeRates = async () => {
       setLoading(true);
       setError(null);
       try {
         const targetCurrencies = selectedCurrencies.map(c => c.code);
+        // Fetch exchange rates for the last 7 days
         const rates = await Promise.all(
           Array.from({ length: 7 }, (_, i) => {
             const date = format(subDays(selectedDate, i), 'yyyy-MM-dd');
@@ -73,11 +88,13 @@ function App() {
     loadExchangeRates();
   }, [selectedDate, baseCurrency, selectedCurrencies]);
 
+  // Handler for date changes with validation for 90-day range
   const handleDateChange = (date: Date | null) => {
     if (date) {
       const today = new Date();
       const ninetyDaysAgo = subDays(today, 90);
       
+      // Validate date is within allowed range
       if (isAfter(date, today)) {
         setSelectedDate(today);
       } else if (isBefore(date, ninetyDaysAgo)) {
@@ -88,10 +105,12 @@ function App() {
     }
   };
 
+  // Handler for base currency changes
   const handleCurrencyChange = (event: any) => {
     setBaseCurrency(event.target.value);
   };
 
+  // Handler for adding new currencies (max 7 currencies allowed)
   const handleAddCurrency = (event: any) => {
     const value = event.target.value;
     setSelectedAddCurrency(value);
@@ -106,6 +125,7 @@ function App() {
     }
   };
 
+  // Handler for removing currencies (minimum 3 currencies required)
   const handleRemoveCurrency = (code: string) => {
     if (selectedCurrencies.length > 3) {
       setSelectedCurrencies(selectedCurrencies.filter((c) => c.code !== code));
@@ -115,29 +135,36 @@ function App() {
     }
   };
 
+  // Filter available currencies that are not already selected
   const filteredCurrencies = availableCurrencies
     .filter(currency => !selectedCurrencies.find(c => c.code === currency.code));
 
+  // Filter currencies that can be added (not selected and not base currency)
   const filteredAddCurrencies = availableCurrencies
     .filter(currency => 
       !selectedCurrencies.find(c => c.code === currency.code) && 
       currency.code !== baseCurrency
     );
 
+  // Main render function
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Container maxWidth="lg" sx={{ py: 4 }}>
+        {/* Header section */}
         <Typography variant="h4" className="currency-header">
           Currency Exchange Rates
         </Typography>
         
+        {/* Error message display */}
         {error && (
           <Typography color="error" className="error-text" sx={{ mb: 2 }}>
             {error}
           </Typography>
         )}
         
+        {/* Controls section */}
         <Box className="controls-container">
+          {/* Base currency selector */}
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>Base Currency</InputLabel>
             <Select
@@ -159,6 +186,7 @@ function App() {
             </Select>
           </FormControl>
 
+          {/* Add currency selector */}
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel 
               sx={{ 
@@ -194,6 +222,7 @@ function App() {
             </Select>
           </FormControl>
 
+          {/* Date picker for selecting historical rates */}
           <DatePicker
             label="Select Date"
             value={selectedDate}
@@ -203,11 +232,13 @@ function App() {
           />
         </Box>
 
+        {/* Exchange rates table */}
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Currency</TableCell>
+                {/* Generate date headers for the last 7 days */}
                 {Array.from({ length: 7 }, (_, i) => (
                   <TableCell key={i}>
                     {format(subDays(selectedDate, i), 'MMM dd, yyyy')}
@@ -217,12 +248,14 @@ function App() {
               </TableRow>
             </TableHead>
             <TableBody>
+              {/* Generate rows for each selected currency */}
               {selectedCurrencies.map((currency) => (
                 <TableRow key={currency.code}>
                   <TableCell>
                     <span className="currency-code">{currency.code}</span>
                     <span className="currency-name">- {currency.name}</span>
                   </TableCell>
+                  {/* Display exchange rates for each day */}
                   {exchangeRates.map((rates, index) => (
                     <TableCell key={index}>
                       {loading ? (
@@ -236,6 +269,7 @@ function App() {
                       )}
                     </TableCell>
                   ))}
+                  {/* Remove currency button */}
                   <TableCell>
                     <IconButton
                       onClick={() => handleRemoveCurrency(currency.code)}
